@@ -1,0 +1,32 @@
+          //tanınan yüz sayacı
+                ContTrain = ContTrain + 1;
+          //yakalanan yüze gri filtre uygula.
+                gray = grabber.QueryGrayFrame().Resize(320, 240, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
+          //Yüz tanıma alanı.
+                MCvAvgComp[][] facesDetected = gray.DetectHaarCascade(
+                face,
+                1.2,
+                10,
+                Emgu.CV.CvEnum.HAAR_DETECTION_TYPE.DO_CANNY_PRUNING,
+                new Size(20, 20));
+          //Algınan her yüz için bu işlemi yap.
+                foreach (MCvAvgComp f in facesDetected[0])
+                {
+                    TrainedFace = currentFrame.Copy(f.rect).Convert<Gray, byte>();
+                    break;
+                }
+          //Yüzü aynı boyut ile yeniden boyutlandırma.
+          //Kübic enterpolasyon ile test fotoğrafını gösterme.
+                TrainedFace = result.Resize(100, 100, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
+                trainingImages.Add(TrainedFace);
+                labels.Add(textBox1.Text);
+          //Yüzü grayscala filtresi ile ekle.
+                imageBox1.Image = TrainedFace;
+          //tanımlanan yüz sayısını metin dosyasına yazma.
+                File.WriteAllText(Application.StartupPath + "/TrainedFaces/TrainedLabels.txt", trainingImages.ToArray().Length.ToString() + "%");
+          //Tanınan yüzlerin etiketini metin dosyasına yazma
+                for (int i = 1; i < trainingImages.ToArray().Length + 1; i++)
+                {
+                    trainingImages.ToArray()[i - 1].Save(Application.StartupPath + "/TrainedFaces/face" + i + ".bmp");
+                    File.AppendAllText(Application.StartupPath + "/TrainedFaces/TrainedLabels.txt", labels.ToArray()[i - 1] + "%");
+                }
