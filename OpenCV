@@ -1,32 +1,211 @@
-          //tanınan yüz sayacı
+namespace MultiFaceRec
+{
+    public partial class FrmPrincipal : Form
+    {
+        //Değişken tanımlamaları.
+        Image<Bgr, Byte> currentFrame;
+        Capture grabber;
+        HaarCascade face;
+        HaarCascade eye;
+        MCvFont font = new MCvFont(FONT.CV_FONT_HERSHEY_TRIPLEX, 0.5d, 0.5d);
+        Image<Gray, byte> result, TrainedFace = null;
+        Image<Gray, byte> gray = null;
+        List<Image<Gray, byte>> trainingImages = new List<Image<Gray, byte>>();
+        List<string> labels= new List<string>();
+        List<string> NamePersons = new List<string>();
+        int ContTrain, NumLabels, t;
+        string name, names = null;
+
+
+        public FrmPrincipal()
+        {
+            InitializeComponent();
+            //Yüzü tanımak için altın oranların parçalanması
+            face = new HaarCascade("haarcascade_frontalface_default.xml");
+            //eye = new HaarCascade("haarcascade_eye.xml");
+            try
+            {
+                //Tanıtılmış her resim için yüzlerin ve etiketlerin yüklenmesi
+                string Labelsinfo = File.ReadAllText(Application.StartupPath + "/TrainedFaces/TrainedLabels.txt");
+                string[] Labels = Labelsinfo.Split('%');
+                NumLabels = Convert.ToInt16(Labels[0]);
+                ContTrain = NumLabels;
+                string LoadFaces;
+
+                for (int tf = 1; tf < NumLabels+1; tf++)
+                {
+                    // işlem hatasız gerçekleşirse labelsa ve TrainedFace klasörüne ismi ve uzantısını kaydet.
+                    LoadFaces = "face" + tf + ".bmp";
+                    trainingImages.Add(new Image<Gray, byte>(Application.StartupPath + "/TrainedFaces/" + LoadFaces));
+                    labels.Add(Labels[tf]);
+                }
+            
+            }
+            catch(Exception e)
+            {
+                MessageBox.Show("Veritabanında herhangi bir tanınmış yüz yok. Lütfen yüz tanımak için yüz ekle butonuna tıklayınız.", "Yüz eklenemedi hatası", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
+
+        }
+
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            //Kamerayı başlat.
+            grabber = new Capture();
+            grabber.QueryFrame();
+            //FrameGrabber (fotoğraf yakalama) başlat.
+            Application.Idle += new EventHandler(FrameGrabber);
+            button1.Enabled = false;
+        }
+
+
+        private void button2_Click(object sender, System.EventArgs e)
+        {
+            try
+            {
+                //tanınan yüz sayacı
                 ContTrain = ContTrain + 1;
-          //yakalanan yüze gri filtre uygula.
+
+                //yakalanan yüze gri filtre uygula.
                 gray = grabber.QueryGrayFrame().Resize(320, 240, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
-          //Yüz tanıma alanı.
+
+                //Yüz tanıma alanı.
                 MCvAvgComp[][] facesDetected = gray.DetectHaarCascade(
                 face,
                 1.2,
                 10,
                 Emgu.CV.CvEnum.HAAR_DETECTION_TYPE.DO_CANNY_PRUNING,
                 new Size(20, 20));
-          //Algınan her yüz için bu işlemi yap.
+
+                //Algınan her yüz için bu işlemi yap.
                 foreach (MCvAvgComp f in facesDetected[0])
                 {
                     TrainedFace = currentFrame.Copy(f.rect).Convert<Gray, byte>();
                     break;
                 }
-          //Yüzü aynı boyut ile yeniden boyutlandırma.
-          //Kübic enterpolasyon ile test fotoğrafını gösterme.
+
+                //Yüzü aynı boyut ile yeniden boyutlandırma.
+                //Kübic enterpolasyon ile test fotoğrafını gösterme.
                 TrainedFace = result.Resize(100, 100, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
                 trainingImages.Add(TrainedFace);
                 labels.Add(textBox1.Text);
-          //Yüzü grayscala filtresi ile ekle.
+
+                //Yüzü grayscala filtresi ile ekle.
                 imageBox1.Image = TrainedFace;
-          //tanımlanan yüz sayısını metin dosyasına yazma.
+
+                //tanımlanan yüz sayısını metin dosyasına yazma.
                 File.WriteAllText(Application.StartupPath + "/TrainedFaces/TrainedLabels.txt", trainingImages.ToArray().Length.ToString() + "%");
-          //Tanınan yüzlerin etiketini metin dosyasına yazma
+
+                //Tanınan yüzlerin etiketini metin dosyasına yazma
                 for (int i = 1; i < trainingImages.ToArray().Length + 1; i++)
                 {
                     trainingImages.ToArray()[i - 1].Save(Application.StartupPath + "/TrainedFaces/face" + i + ".bmp");
                     File.AppendAllText(Application.StartupPath + "/TrainedFaces/TrainedLabels.txt", labels.ToArray()[i - 1] + "%");
                 }
+
+                MessageBox.Show(textBox1.Text + "'in yüzü eklendi.", "Ekleme başarılı", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch
+            {
+                MessageBox.Show("Önce yüz tanımayı etkinleştir.", "Ekleme başarısız", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
+            label7.Text = DateTime.Now.ToLongDateString();
+            label8.Text = DateTime.Now.ToLongTimeString();
+        }
+
+
+        void FrameGrabber(object sender, EventArgs e)
+        {
+            label3.Text = "0";
+            //label4.Text = "";
+            NamePersons.Add("");// Tanımlanan kişinin adını yaz.
+
+
+            //Geçerli kareyi kameradan al.
+            currentFrame = grabber.QueryFrame().Resize(320, 240, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
+
+            //Grayscale filtresine çevir.
+            gray = currentFrame.Convert<Gray, Byte>();
+
+            //Yüzü tara.
+            MCvAvgComp[][] facesDetected = gray.DetectHaarCascade(
+                  face,
+                  1.2,
+                  10,
+                  Emgu.CV.CvEnum.HAAR_DETECTION_TYPE.DO_CANNY_PRUNING,
+                  new Size(20, 20));
+
+            //Algılanan her öğe için bu eylemi yap.
+            foreach (MCvAvgComp f in facesDetected[0])
+                    {
+                        t = t + 1;
+                        result = currentFrame.Copy(f.rect).Convert<Gray, byte>().Resize(100, 100, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
+                //Tespit edilen yüzü yeşil çerçeve içine al.
+                currentFrame.Draw(f.rect, new Bgr(Color.Green), 2);
+
+
+                        if (trainingImages.ToArray().Length != 0)
+                        {
+                    //TermCriteria (yüz eşleştirme) işlemini başlat.
+                    MCvTermCriteria termCrit = new MCvTermCriteria(ContTrain, 0.001);
+
+                    //Kendi yüzünü tanımlama.
+                    EigenObjectRecognizer recognizer = new EigenObjectRecognizer(
+                           trainingImages.ToArray(),
+                           labels.ToArray(),
+                           3000,
+                           ref termCrit);
+
+                        name = recognizer.Recognize(result);
+
+                    //Tanınan yüz için isim etiketi girilen yer.
+                    currentFrame.Draw(name, ref font, new Point(f.rect.X - 2, f.rect.Y - 2), new Bgr(Color.Yellow));// -2 değerleri çerçevenin 2 pixel üstünde ve 2 pixel solunda yazının başlaması.
+
+                }
+
+                            NamePersons[t-1] = name;//İsmi yenilemek için hafıdan yer ayır. Sonra ekle.
+                NamePersons.Add("");
+
+
+                //Tanınan yüzlerin sayısını yaz.
+                label3.Text = facesDetected[0].Length.ToString();
+                       
+                        /*
+                        //Set the region of interest on the faces
+                        
+                        gray.ROI = f.rect;
+                        MCvAvgComp[][] eyesDetected = gray.DetectHaarCascade(
+                           eye,
+                           1.1,
+                           10,
+                           Emgu.CV.CvEnum.HAAR_DETECTION_TYPE.DO_CANNY_PRUNING,
+                           new Size(20, 20));
+                        gray.ROI = Rectangle.Empty;
+
+                        foreach (MCvAvgComp ey in eyesDetected[0])
+                        {
+                            Rectangle eyeRect = ey.rect;
+                            eyeRect.Offset(f.rect.X, f.rect.Y);
+                            currentFrame.Draw(eyeRect, new Bgr(Color.Blue), 2);
+                        }
+                         */
+
+                    }
+                        t = 0;
+
+            //Tanımlanan isimlerin yanyana yazılması.
+            for (int nnn = 0; nnn < facesDetected[0].Length; nnn++)
+                    {
+                        names = names + NamePersons[nnn] + ", ";
+                    }
+            //Tanınmış olan yüzleri yaz.
+            imageBoxFrameGrabber.Image = currentFrame;
+                    label4.Text = names;
+                    names = "";
+            //İsimleri temizle.
+            NamePersons.Clear();
+
+                }
+    }
+}
