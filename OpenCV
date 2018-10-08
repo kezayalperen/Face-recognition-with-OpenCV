@@ -171,8 +171,8 @@ namespace MultiFaceRec
                 //Tanınan yüzlerin sayısını yaz.
                 label3.Text = facesDetected[0].Length.ToString();
                        
-                        /*
-                        //Set the region of interest on the faces
+                        
+                        //Iris tanıma sistemi
                         
                         gray.ROI = f.rect;
                         MCvAvgComp[][] eyesDetected = gray.DetectHaarCascade(
@@ -189,7 +189,7 @@ namespace MultiFaceRec
                             eyeRect.Offset(f.rect.X, f.rect.Y);
                             currentFrame.Draw(eyeRect, new Bgr(Color.Blue), 2);
                         }
-                         */
+                         
 
                     }
                         t = 0;
